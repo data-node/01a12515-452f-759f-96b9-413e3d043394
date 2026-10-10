@@ -6,6 +6,14 @@ Press **Ctrl + I** from any app, or click the tray icon, to open the small captu
 
 For example, save `C:\Projects\Claude` with “This is my Claude root folder for agents and prompts.” Searching **claude root folder** returns that exact path. **Open folder** opens Explorer; **Copy** copies the full path. Files are revealed in Explorer rather than executed.
 
+## Version 0.2.0
+
+The [original 0.1.0 release](https://github.com/data-node/01a12515-452f-759f-96b9-413e3d043394/tree/v0.1.0) is frozen. New work is versioned separately. Read the [70-item improvement roadmap](docs/ROADMAP.md) and [0.2.0 release notes](docs/releases/0.2.0.md).
+
+The control panel now includes editing, archive, recoverable trash with Undo/restore, named saved searches, a **Ctrl+Shift+P** command palette, connected items with visible reasons, and indexing health with retry. Try `claude type:folder tag:ai` or `is:favorite`. Editing lets you correct a dotted folder or extensionless file. User-written titles survive AI enrichment.
+
+On upgrade, an existing v1 SQLite database is backed up before the atomic v2 migration. Do not open the upgraded library with the frozen old app; see the recovery instructions in the release notes.
+
 ## Run on Windows
 
 Requirements: Windows 10/11 x64, **Node.js 24 LTS**, npm, and Git. No separate database or Python runtime is needed. Use the existing checkout; every cloud task is already isolated, so a Git worktree is unnecessary.
@@ -38,19 +46,19 @@ Output is in `release/`. Build on Windows for the supported installer workflow. 
 
 The initial portable build is available directly from the repository: **[Download Notch 0.1.0 for Windows](downloads/Notch-0.1.0-win-x64.exe?raw=1)**. This is the unsigned Linux cross-build described above and still needs execution testing on Windows. [Its SHA-256 checksum](downloads/Notch-0.1.0-win-x64.exe.sha256) is included beside it. Run the portable executable directly; installation is not required.
 
-After the project has been pushed to a GitHub repository you can access, open **Actions → Build Windows downloads → Run workflow**. A successful run provides the **Notch-Windows-x64** artifact at the bottom of the run page. Download and extract that ZIP to get the portable executable, Windows installer, SHA-256 checksums, and preview images. GitHub artifact downloads require an account with access to the repository. Artifacts are retained for 14 days. Pushing a version tag such as `v0.1.0` also starts the build.
+New versioned downloads are published on the [GitHub Releases page](https://github.com/data-node/01a12515-452f-759f-96b9-413e3d043394/releases). The Windows workflow builds both installer and portable app, exercises actual capture/search in the packaged runtime, creates SHA-256 files, and publishes assets only for validated version tags. Main-branch builds retain an Actions artifact for 14 days; release assets provide persistent public downloads. A failed build does not publish a release.
 
-The Windows workflow also starts whenever `main` is updated. The direct initial portable download remains available independently of the workflow's outcome.
-
-The workflow runs on Windows, tests the SQLite/provider code, checks types, and builds both Windows packages. It does not publish a release, enable AI, or add a signing certificate. The workflow must run successfully before a downloadable GitHub artifact exists; adding this file alone does not create one.
+The first portable binary is preserved with the frozen source at [v0.1.0](https://github.com/data-node/01a12515-452f-759f-96b9-413e3d043394/raw/refs/tags/v0.1.0/downloads/Notch-0.1.0-win-x64.exe), independently of new workflow outcomes. Builds are currently unsigned. The workflow deliberately disables executable signing/metadata editing until a signing setup is available.
 
 ## Interface previews
 
 The control panel preview uses clearly labeled browser sample data; a new desktop collection starts empty. The capture screenshot comes from the native Electron smoke run on Linux.
 
-![Control panel with sample data](docs/previews/library.png)
+![Control panel with sample data](docs/previews/v0.2.0-library.png)
 
 ![Native capture window](docs/previews/capture.png)
+
+![Connected items with visible evidence](docs/previews/v0.2.0-related.png)
 
 ## AI and search
 
@@ -72,9 +80,9 @@ Use **Test saved connection** after saving settings. Failed enrichment does not 
 - The actual desktop collection starts empty. The browser-only preview uses clearly labeled sample data in browser localStorage; it does not access desktop data or provide tray, hotkey, AI, or file integration.
 - Desktop storage is `notch.sqlite` inside Electron's user-data directory (typically `%APPDATA%\notch-space` in development or `%APPDATA%\Notch` in a packaged build). It uses WAL mode. `NOTCH_DATA_DIR` overrides the directory for isolated development/testing.
 - The SQLite collection is **not encrypted**. API keys use OS encryption where available. No analytics, account, sync, or remote font CDN is required.
-- Settings → Your data exports/imports portable JSON. Keys and vectors are excluded. Imports are transactional, reject malformed items, skip duplicates, and do not overwrite an existing collection. Export includes paths and descriptions; protect backups accordingly. Imported items are locally searchable; re-index to generate vectors.
+- Settings → Your data exports/imports portable JSON. Keys and vectors are excluded. Exports also retain saved searches, archive/trash state and user title ownership. Imports accept V1 and V2, are transactional, reject malformed items, skip duplicates, and do not overwrite an existing collection. Export includes paths and descriptions; protect backups accordingly. Imported items are locally searchable; re-index to generate vectors.
 - Directory/file classification for nonexistent paths is heuristic (a filename extension suggests a file). At open time the app checks the real filesystem. A path saved on another device is still searchable and copyable.
-- Favorites, type filters, tag filters, list/grid views, relevance/date sorting, and deliberate deletion confirmation are included. User-added tags are merged with AI tags; re-capture the same locator to update a description.
+- Favorites, type filters, tag filters, list/grid views, relevance/date sorting, and deliberate deletion confirmation are included. Use Edit to update an item. Tags are still merged with AI suggestions; separate tag ownership is on the roadmap. Recapturing an archived or trashed locator brings the existing item back to the active collection.
 
 ## Development and checks
 
@@ -85,7 +93,7 @@ npm run test:ui
 npm run build
 ```
 
-Backend tests exercise real SQLite FTS5, exact path retrieval, ranking, vector fusion, imports, duplicates, and provider failure/race handling. Provider tests use mocked HTTP responses, not paid requests. Playwright tests capture, search, favorites, deletion, settings, and layouts in the browser preview. Install Chromium with `npx playwright install chromium` or set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to an existing Chromium executable. Native smoke checks use `node scripts/desktop-smoke.mjs` under a graphical display.
+Backend tests exercise real SQLite FTS5, exact path retrieval, ranking, vector fusion, imports, duplicates, and provider failure/race handling. Provider tests use mocked HTTP responses, not paid requests. Playwright tests capture, search, favorites, trash, restore, archive, editing, saved filters, commands, connected items, settings, and layouts in the browser preview. Install Chromium with `npx playwright install chromium` or set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to an existing Chromium executable. Native smoke checks use `node scripts/desktop-smoke.mjs` under a graphical display.
 
 In the cloud Linux environment, Node 24 is provided. Use a writable cache and the platform proxy for Electron's verified download:
 

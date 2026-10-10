@@ -27,6 +27,10 @@ export function normalizeCapture(input: CaptureInput) {
   } else {
     throw new Error('Use a full https:// link or an absolute folder or file path, such as C:\\Projects\\Claude.');
   }
+  if (input.kind !== undefined) {
+    if (!['link', 'file', 'folder'].includes(input.kind) || (kind === 'link') !== (input.kind === 'link')) throw new Error('Choose a kind that matches the link or path.');
+    kind = input.kind;
+  }
   const tags = cleanWords(input.tags ?? []);
   return { locator, description, kind, title: title.slice(0, 180), canonical, tags };
 }

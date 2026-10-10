@@ -5,17 +5,21 @@ export interface Item {
   kind: Kind; tags: string[]; keywords: string[]; favorite: boolean;
   createdAt: string; updatedAt: string; status: IndexStatus; error: string;
   embedding: number[] | null; embeddingModel: string | null;
+  titleLocked?: boolean; archivedAt: string | null; deletedAt: string | null;
 }
 export interface SearchHit extends Item { score: number; match: 'text' | 'semantic' | 'hybrid' | 'recent' }
-export interface CaptureInput { locator: string; description: string; tags?: string[] }
-export interface SearchInput { query: string; filter?: 'all' | 'favorites' | Kind; tag?: string; sort?: 'relevance' | 'newest' | 'oldest' }
+export interface CaptureInput { locator: string; description: string; tags?: string[]; kind?: Kind }
+export interface EditInput extends CaptureInput { title: string }
+export interface SavedSearch { id: string; name: string; input: SearchInput; createdAt: string }
+export interface RelatedHit extends Item { reasons: string[] }
+export interface SearchInput { scope?: 'active' | 'archived' | 'trash'; query: string; filter?: 'all' | 'favorites' | Kind; tag?: string; sort?: 'relevance' | 'newest' | 'oldest' }
 export interface Settings {
   provider: 'none' | 'anthropic' | 'ollama'; anthropicModel: string;
   ollamaUrl: string; ollamaModel: string; embeddings: boolean; embeddingModel: string;
   shortcut: string; launchAtLogin: boolean; hasApiKey: boolean; canStoreApiKey: boolean;
 }
 export type SettingsUpdate = Partial<Omit<Settings, 'hasApiKey' | 'canStoreApiKey'>> & { apiKey?: string };
-export interface Stats { total: number; links: number; folders: number; files: number; favorites: number; enriched: number; tags: string[] }
+export interface Stats { total: number; links: number; folders: number; files: number; favorites: number; enriched: number; archived: number; trash: number; indexing: number; errors: number; tags: string[] }
 export interface SaveResult { item: Item; duplicate: boolean }
 export interface NotchAPI {
   search(input: SearchInput): Promise<SearchHit[]>;
@@ -23,6 +27,14 @@ export interface NotchAPI {
   stats(): Promise<Stats>;
   favorite(id: string): Promise<void>;
   remove(id: string): Promise<void>;
+  edit(id: string, input: EditInput): Promise<Item>;
+  archive(id: string): Promise<void>;
+  restore(id: string): Promise<void>;
+  related(id: string): Promise<RelatedHit[]>;
+  savedSearches(): Promise<SavedSearch[]>;
+  saveSearch(name: string, input: SearchInput): Promise<SavedSearch>;
+  deleteSearch(id: string): Promise<void>;
+  retryFailed(): Promise<number>;
   open(id: string): Promise<void>;
   copy(text: string): Promise<void>;
   settings(): Promise<Settings>;

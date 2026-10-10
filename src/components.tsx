@@ -12,7 +12,7 @@ export function Modal({ children, onClose, label, className = '' }: { children: 
     const previous = document.activeElement as HTMLElement | null;
     const element = ref.current;
     const focusable = () => Array.from(element?.querySelectorAll<HTMLElement>('button, input, textarea, select, [tabindex="0"]') ?? []).filter(el => !el.hasAttribute('disabled'));
-    (focusable()[0] ?? element)?.focus();
+    (element?.querySelector<HTMLElement>('[data-autofocus]') ?? focusable()[0] ?? element)?.focus();
     const handler = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onClose(); }
       if (event.key === 'Tab') {
@@ -27,6 +27,6 @@ export function Modal({ children, onClose, label, className = '' }: { children: 
   }, [onClose]);
   return <div className="modal-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}><div className={`modal ${className}`} role="dialog" aria-modal="true" aria-label={label} tabIndex={-1} ref={ref}>{children}</div></div>;
 }
-export function CloseButton({ onClick }: { onClick: () => void }) { return <button className="icon-button" onClick={onClick} aria-label="Close"><X size={18} /></button>; }
+export function CloseButton({ onClick }: { onClick: () => void }) { return <button type="button" className="icon-button" onClick={onClick} aria-label="Close"><X size={18} /></button>; }
 export function ExternalGlyph() { return <ArrowUpRight size={15} />; }
 export function niceDate(date: string) { const value = new Date(date); const today = new Date(); if (value.toDateString() === today.toDateString()) return 'Today'; const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1); return value.toDateString() === yesterday.toDateString() ? 'Yesterday' : value.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }

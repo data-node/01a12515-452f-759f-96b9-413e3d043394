@@ -1,4 +1,5 @@
-import { DEFAULT_SETTINGS, type Item, type NotchAPI, type Settings } from '../shared/types';
+import { parseSearch, validateSearch } from '../shared/search';
+import { DEFAULT_SETTINGS, type SavedSearch, type Item, type NotchAPI, type Settings } from '../shared/types';
 
 declare global { interface Window { notch?: NotchAPI } }
 export const isPreview = !window.notch;
@@ -15,14 +16,19 @@ function demoAPI(): NotchAPI {
   const stored = localStorage.getItem(key);
   let items: Item[];
   try { items = stored ? JSON.parse(stored) : examples(); } catch { items = examples(); }
+  items = items.map(item => ({ ...item, archivedAt: item.archivedAt ?? null, deletedAt: item.deletedAt ?? null }));
+  let saved: SavedSearch[];
+  try { saved = JSON.parse(localStorage.getItem('notch-preview-searches') ?? '[]'); } catch { saved = []; }
   let settings = { ...DEFAULT_SETTINGS };
   const listeners = new Set<() => void>();
-  const notify = () => { localStorage.setItem(key, JSON.stringify(items)); listeners.forEach(fn => fn()); };
+  const notify = () => { localStorage.setItem(key, JSON.stringify(items)); localStorage.setItem('notch-preview-searches', JSON.stringify(saved)); listeners.forEach(fn => fn()); };
   const unavailable = async () => { throw new Error('This is the browser preview. Use the desktop app for AI, system tray, and file operations.'); };
   return {
-    async search({ query, filter, tag, sort }) {
+    async search(input) {
+      const {query, eligible} = parseSearch(validateSearch(input));
+      const {sort} = input;
       const words = query.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
-      return items.filter(item => (!filter || filter === 'all' || (filter === 'favorites' ? item.favorite : item.kind === filter)) && (!tag || item.tags.includes(tag))).map(item => {
+      return items.filter(eligible).map(item => {
         const haystack = `${item.title} ${item.locator} ${item.description} ${item.tags} ${item.keywords}`.toLowerCase();
         return { ...item, score: words.reduce((sum, word) => sum + (haystack.includes(word) ? 1 : 0), 0), match: query ? 'text' as const : 'recent' as const };
       }).filter(item => !query || item.score > 0).sort((a, b) => sort === 'oldest' ? a.createdAt.localeCompare(b.createdAt) : sort === 'newest' || !query ? b.createdAt.localeCompare(a.createdAt) : b.score - a.score);
@@ -33,14 +39,39 @@ function demoAPI(): NotchAPI {
       if (!input.description.trim()) throw new Error('Add a description so you can find this later.');
       if (/^https?:\/\//i.test(locator)) { const url = new URL(locator); if (url.username || url.password) throw new Error('Do not include credentials in links.'); }
       const existing = items.find(item => item.locator === locator);
-      if (existing) { existing.description = input.description.trim(); existing.updatedAt = new Date().toISOString(); notify(); return { item: existing, duplicate: true }; }
+      if (existing) { existing.deletedAt = null; existing.archivedAt = null; existing.description = input.description.trim(); existing.updatedAt = new Date().toISOString(); notify(); return { item: existing, duplicate: true }; }
       const kind = /^https?:/i.test(locator) ? 'link' : /\.[a-z0-9]+$/i.test(locator) ? 'file' : 'folder';
-      const item: Item = { id: crypto.randomUUID(), locator, title: kind === 'link' ? new URL(locator).hostname : locator.split(/[\\/]/).filter(Boolean).at(-1)!, description: input.description.trim(), kind, tags: input.tags ?? [], keywords: [], summary: '', favorite: false, status: 'local', error: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), embedding: null, embeddingModel: null };
+      const item: Item = { archivedAt: null, deletedAt: null, id: crypto.randomUUID(), locator, title: kind === 'link' ? new URL(locator).hostname : locator.split(/[\\/]/).filter(Boolean).at(-1)!, description: input.description.trim(), kind, tags: input.tags ?? [], keywords: [], summary: '', favorite: false, status: 'local', error: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), embedding: null, embeddingModel: null };
       items.unshift(item); notify(); return { item, duplicate: false };
     },
-    async stats() { return { total: items.length, links: items.filter(i => i.kind === 'link').length, folders: items.filter(i => i.kind === 'folder').length, files: items.filter(i => i.kind === 'file').length, favorites: items.filter(i => i.favorite).length, enriched: 0, tags: [...new Set(items.flatMap(i => i.tags))].sort() }; },
+    async stats() {
+      const active = items.filter(i => !i.archivedAt && !i.deletedAt);
+      return { total: active.length, links: active.filter(i => i.kind === 'link').length, folders: active.filter(i => i.kind === 'folder').length, files: active.filter(i => i.kind === 'file').length, favorites: active.filter(i => i.favorite).length, enriched: 0, indexing: 0, errors: 0, archived: items.filter(i => i.archivedAt && !i.deletedAt).length, trash: items.filter(i => i.deletedAt).length, tags: [...new Set(active.flatMap(i => i.tags))].sort() };
+    },
     async favorite(id) { const item = items.find(i => i.id === id); if (item) item.favorite = !item.favorite; notify(); },
-    async remove(id) { items = items.filter(i => i.id !== id); notify(); },
+    async remove(id) { const item = items.find(i => i.id === id); if (item) item.deletedAt = new Date().toISOString(); notify(); },
+    async restore(id) { const item = items.find(i => i.id === id); if (item) { item.deletedAt = null; item.archivedAt = null; } notify(); },
+    async archive(id) { const item = items.find(i => i.id === id); if (item) item.archivedAt = item.archivedAt ? null : new Date().toISOString(); notify(); },
+    async edit(id, input) {
+      const item = items.find(i => i.id === id);
+      if (!item || item.deletedAt) throw new Error('Restore the item before editing.');
+      if (!input.title.trim() || !input.description.trim()) throw new Error('Add a title and description.');
+      if (items.some(i => i.id !== id && i.locator === input.locator.trim())) throw new Error('That link or path is already saved.');
+      if (item.kind === 'link') { const url = new URL(input.locator); if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('Use a safe http or https link.'); }
+      else if (!/^(?:[a-z]:[\\/]|\\\\|\/)/i.test(input.locator)) throw new Error('Use an absolute path.');
+      Object.assign(item, { title: input.title.trim(), locator: input.locator.trim(), description: input.description.trim(), tags: input.tags ?? [], kind: input.kind ?? item.kind, updatedAt: new Date().toISOString() }); notify(); return item;
+    },
+    async related(id) {
+      const source = items.find(i => i.id === id);
+      return items.filter(i => i.id !== id && !i.deletedAt && !i.archivedAt).map(i => ({ ...i, reasons: i.tags.filter(t => source?.tags.includes(t)).map(t => `Shared tag: #${t}`) })).filter(i => i.reasons.length).sort((a,b) => b.reasons.length-a.reasons.length).slice(0,5);
+    },
+    async savedSearches() { return saved; },
+    async saveSearch(name, input) {
+      if (!name.trim() || name.length > 60 || saved.length >= 40) throw new Error('Use a short name; you can keep up to 40 searches.');
+      const entry = {id: crypto.randomUUID(), name: name.trim(), input: validateSearch(input), createdAt: new Date().toISOString()}; saved.push(entry); notify(); return entry;
+    },
+    async deleteSearch(id) { saved = saved.filter(s => s.id !== id); notify(); },
+    retryFailed: unavailable,
     async copy(text) { await navigator.clipboard.writeText(text); },
     async open(id) { const item = items.find(i => i.id === id); if (item?.kind === 'link') window.open(item.locator, '_blank', 'noopener,noreferrer'); else throw new Error('Open local paths in the Windows desktop app.'); },
     async settings() { return settings; },
@@ -51,5 +82,5 @@ function demoAPI(): NotchAPI {
     onCaptureOpened() { return () => {}; },
   };
 }
-function examples(): Item[] { return exampleItems.map((item, i) => ({ id: `demo-${i}`, summary: '', keywords: [], tags: [], favorite: false, status: 'local', error: '', embedding: null, embeddingModel: null, createdAt: new Date(Date.now() - i * 86400000).toISOString(), updatedAt: new Date().toISOString(), ...item } as Item)); }
+function examples(): Item[] { return exampleItems.map((item, i) => ({ archivedAt: null, deletedAt: null, id: `demo-${i}`, summary: '', keywords: [], tags: [], favorite: false, status: 'local', error: '', embedding: null, embeddingModel: null, createdAt: new Date(Date.now() - i * 86400000).toISOString(), updatedAt: new Date().toISOString(), ...item } as Item)); }
 export const api: NotchAPI = window.notch ?? demoAPI();

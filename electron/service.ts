@@ -1,5 +1,6 @@
-import type { CaptureInput, SearchInput, Settings } from '../shared/types.js';
+import type { CaptureInput, EditInput, SearchInput, Settings } from '../shared/types.js';
 import { embed, enrichItem } from './ai.js';
+import { parseSearch } from '../shared/search.js';
 import { Store } from './store.js';
 
 export class LibraryService {
@@ -14,7 +15,19 @@ export class LibraryService {
     this.retry(result.item.id);
     return { ...result, item: this.store.get(result.item.id)! };
   }
+  edit(id: string, input: EditInput) {
+    const item = this.store.edit(id, input);
+    this.retry(id);
+    this.changed();
+    return item;
+  }
+  retryFailed() {
+    const items = this.store.all().filter(x => !x.deletedAt && !x.archivedAt && x.status === 'error');
+    items.forEach(x => this.retry(x.id));
+    return items.length;
+  }
   retry(id: string) {
+    if (!this.store.get(id) || this.store.get(id)!.deletedAt) return;
     const version = (this.versions.get(id) ?? 0) + 1;
     this.versions.set(id, version);
     const settings = this.settings();
@@ -27,6 +40,7 @@ export class LibraryService {
   remove(id: string) {
     this.versions.set(id, (this.versions.get(id) ?? 0) + 1);
     this.pending.delete(id);
+    if (this.store.get(id)?.status === 'indexing') this.store.setStatus(id, 'local');
     this.store.remove(id);
     this.changed();
   }
@@ -44,7 +58,7 @@ export class LibraryService {
   }
   private async index(id: string, version: number) {
     const item = this.store.get(id);
-    if (!item) return;
+    if (!item || item.deletedAt) return;
     const settings = this.settings();
     try {
       const metadata = await enrichItem(item, settings, this.key());
@@ -60,8 +74,9 @@ export class LibraryService {
   }
   async search(input: SearchInput) {
     const settings = this.settings();
-    if (input.query.trim() && settings.embeddings) {
-      try { return this.store.search(input, await embed(input.query, settings, 3500), settings.embeddingModel); }
+    const query = parseSearch(input).query;
+    if (query && settings.embeddings) {
+      try { return this.store.search(input, await embed(query, settings, 3500), settings.embeddingModel); }
       catch { /* Keep local full-text search available if the semantic provider is offline. */ }
     }
     return this.store.search(input);

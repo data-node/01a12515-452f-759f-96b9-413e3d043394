@@ -8,7 +8,8 @@ import { setTimeout } from 'node:timers/promises';
 // This isolated smoke collection never touches the real user's library.
 const dataDir = await mkdtemp(path.join(tmpdir(), 'notch-smoke-'));
 await mkdir('test-results', { recursive: true });
-const args = ['.', '--disable-gpu'];
+const args = process.env.NOTCH_SMOKE_EXECUTABLE ? ['--disable-gpu'] : ['.', '--disable-gpu'];
+const launchOptions = { args, ...(process.env.NOTCH_SMOKE_EXECUTABLE ? { executablePath: path.resolve(process.env.NOTCH_SMOKE_EXECUTABLE) } : {}), env: { ...process.env, NOTCH_DATA_DIR: dataDir, NOTCH_DEV_URL: '' }, timeout: 30000 };
 // Only constrained Linux CI may explicitly opt out of Chromium's OS sandbox.
 // The shipped app and normal development command never set this flag.
 if (process.env.NOTCH_SMOKE_NO_SANDBOX === '1') args.push('--no-sandbox');
@@ -22,7 +23,7 @@ async function libraryWindow(app) {
   throw new Error('The native library did not load.');
 }
 try {
-  desktop = await electron.launch({ args, env: { ...process.env, NOTCH_DATA_DIR: dataDir, NOTCH_DEV_URL: '' }, timeout: 30000 });
+  desktop = await electron.launch(launchOptions);
   const library = await libraryWindow(desktop);
   await library.waitForFunction(() => Boolean(window.notch));
   await expect(library.getByRole('heading', { name: 'A place for your next thought.' })).toBeVisible();
@@ -55,11 +56,25 @@ try {
   await library.screenshot({ path: 'test-results/native-library.png', animations: 'disabled' });
   const native = await desktop.evaluate(({ BrowserWindow, globalShortcut }) => ({ windows: BrowserWindow.getAllWindows().length, shortcut: globalShortcut.isRegistered('Control+I'), captureOnTop: BrowserWindow.getAllWindows().some(w => w.isAlwaysOnTop()) }));
   assert.equal(native.windows, 2); assert.equal(native.shortcut, true); assert.equal(native.captureOnTop, true);
+  const expanded = await library.evaluate(async () => {
+    const hits = await window.notch.search({query: 'type:folder tag:ai'});
+    const root = hits[0];
+    await window.notch.edit(root.id, {locator: root.locator, title: 'My Claude root', description: 'Orchestration home for my agents.', kind: 'folder', tags: ['ai']});
+    const saved = await window.notch.saveSearch('Agent roots', {query: 'type:folder tag:ai'});
+    await window.notch.archive(root.id);
+    const active = await window.notch.search({query: 'orchestration'});
+    const archived = await window.notch.search({query: 'orchestration', scope: 'archived'});
+    await window.notch.remove(root.id);
+    const trash = await window.notch.search({query: 'orchestration', scope: 'trash'});
+    await window.notch.restore(root.id);
+    return {active, archived, trash, saved, restored: await window.notch.search({query: 'orchestration'})};
+  });
+  assert.equal(expanded.active.length,0); assert.equal(expanded.archived.length,1); assert.equal(expanded.trash.length,1); assert.equal(expanded.restored[0].title,'My Claude root');
   // Close/relaunch confirms saved SQLite persistence, not just renderer state.
   await desktop.close(); desktop = undefined;
-  desktop = await electron.launch({ args, env: { ...process.env, NOTCH_DATA_DIR: dataDir, NOTCH_DEV_URL: '' }, timeout: 30000 });
+  desktop = await electron.launch(launchOptions);
   const restored = await libraryWindow(desktop); await restored.waitForFunction(() => Boolean(window.notch));
-  const after = await restored.evaluate(async () => ({ stats: await window.notch.stats(), hits: await window.notch.search({ query: 'claude root folder' }) }));
-  assert.equal(after.stats.total, 2); assert.equal(after.stats.favorites, 1); assert.equal(after.hits[0].locator, 'C:\\Projects\\Claude');
-  console.log('Desktop smoke passed: isolated IPC, actual SQLite capture/search, native notch, shortcut registration, favorites, and restart persistence.');
+  const after = await restored.evaluate(async () => ({ stats: await window.notch.stats(), saved: await window.notch.savedSearches(), hits: await window.notch.search({ query: 'orchestration' }) }));
+  assert.equal(after.saved.length,1); assert.equal(after.stats.total, 2); assert.equal(after.stats.favorites, 1); assert.equal(after.hits[0].locator, 'C:\\Projects\\Claude');
+  console.log('Desktop smoke passed: isolated IPC, actual SQLite capture/search, native notch, shortcut registration, editing, saved filters, archive/trash/restore, favorites, and restart persistence.');
 } finally { await desktop?.close(); await rm(dataDir, { recursive: true, force: true }); }

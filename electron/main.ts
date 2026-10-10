@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DEFAULT_SETTINGS, type Item, type SearchInput, type Settings, type SettingsUpdate } from '../shared/types.js';
 import { validateOllamaUrl, enrichItem, embed } from './ai.js';
+import { validateSearch } from '../shared/search.js';
 import { Store } from './store.js';
 import { LibraryService } from './service.js';
 
@@ -115,7 +116,7 @@ function registerHandlers() {
     return handler(...args);
   });
   handle('search', (input: SearchInput) => {
-    if (!input || typeof input.query !== 'string' || ![undefined, 'all', 'favorites', 'link', 'folder', 'file'].includes(input.filter) || ![undefined, 'relevance', 'newest', 'oldest'].includes(input.sort) || (input.tag !== undefined && typeof input.tag !== 'string')) throw new Error('Invalid search.');
+    validateSearch(input);
     return service.search(input);
   });
   handle('capture', input => service.capture(input));
@@ -150,6 +151,14 @@ function registerHandlers() {
   });
   handle('retry', id => { requireItem(id); service.retry(id); });
   handle('favorite', id => { requireItem(id); store.favorite(id); changed(); });
+  handle('edit', (id, input) => { requireItem(id); return service.edit(id, input); });
+  handle('archive', id => { requireItem(id); store.archive(id); changed(); });
+  handle('restore', id => { requireItem(id); store.restore(id); changed(); });
+  handle('related', id => { requireItem(id); return store.related(id); });
+  handle('saved-searches', () => store.savedSearches());
+  handle('save-search', (name, input) => { const result = store.saveSearch(name, input); changed(); return result; });
+  handle('delete-search', id => { if (typeof id !== 'string') throw new Error('Invalid saved search.'); store.deleteSearch(id); changed(); });
+  handle('retry-failed', () => service.retryFailed());
   handle('remove', id => { requireItem(id); service.remove(id); });
   handle('copy', text => { if (typeof text !== 'string' || text.length > 20000) throw new Error('Invalid clipboard content.'); clipboard.writeText(text); });
   handle('open', async id => {
