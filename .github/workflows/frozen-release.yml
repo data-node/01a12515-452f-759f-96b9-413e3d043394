@@ -1,0 +1,33 @@
+name: Publish frozen first release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  preserve:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: v0.1.0
+      - name: Verify the exact original source and executable
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "442b664b96a25a4e29d93bc3100ea390bb757480"
+          cd downloads
+          sha256sum -c Notch-0.1.0-win-x64.exe.sha256
+      - name: Publish the preserved files without replacing existing assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > /tmp/notch-frozen-notes.md <<'EOF'
+          The frozen first Notch release: a space gray capture notch, system tray, configurable Ctrl+I, local SQLite/BM25 search and optional Anthropic/Ollama enrichment.
+
+          These are the exact original portable executable and checksum preserved at commit 442b664b96a25a4e29d93bc3100ea390bb757480. The binary was cross-built on Linux, is unsigned and has not been executed on Windows. Native Electron capture/search and persistence were checked on Linux. Provider tests used mocked responses.
+
+          Run the portable Windows x64 executable directly; this frozen release has no installer. Do not run this old version against a library upgraded to v0.2.0. Restore the pre-upgrade database into a separate data directory when rolling back. The original source and files are not replaced by newer releases.
+          EOF
+          gh release create v0.1.0 downloads/Notch-0.1.0-win-x64.exe downloads/Notch-0.1.0-win-x64.exe.sha256 --verify-tag --title "Notch 0.1.0 — frozen first version" --notes-file /tmp/notch-frozen-notes.md --latest=false

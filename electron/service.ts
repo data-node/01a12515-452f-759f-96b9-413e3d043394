@@ -62,7 +62,7 @@ export class LibraryService {
     const settings = this.settings();
     try {
       const metadata = await enrichItem(item, settings, this.key());
-      const vector = settings.embeddings ? await embed(`${metadata.title}\n${item.description}\n${metadata.summary}\n${metadata.keywords.join(' ')}\n${item.locator}`, settings) : null;
+      const vector = settings.embeddings ? await embed(`${item.titleLocked ? item.title : metadata.title}\n${item.description}\n${metadata.summary}\n${metadata.keywords.join(' ')}\n${item.locator}`, settings) : null;
       if (this.versions.get(id) !== version) return;
       this.store.enrich(id, metadata, vector, vector ? settings.embeddingModel : null);
     } catch (error) {

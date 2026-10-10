@@ -37,7 +37,7 @@ jobs:
       - name: Build installer and portable application on Windows
         shell: pwsh
         run: |
-          npm exec -- electron-builder --win nsis portable --x64 --config.win.signAndEditExecutable=false 2>&1 | Tee-Object -FilePath windows-packaging.log
+          npm exec -- electron-builder --win nsis portable --x64 --publish never 2>&1 | Tee-Object -FilePath windows-packaging.log
           $notchBuildExit = $LASTEXITCODE
           if ($notchBuildExit -ne 0) {
             Get-Content windows-packaging.log -Tail 12 | ForEach-Object { Write-Output "::error::$_" }

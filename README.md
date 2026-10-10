@@ -48,7 +48,7 @@ The initial portable build is available directly from the repository: **[Downloa
 
 New versioned downloads are published on the [GitHub Releases page](https://github.com/data-node/01a12515-452f-759f-96b9-413e3d043394/releases). The Windows workflow builds both installer and portable app, exercises actual capture/search in the packaged runtime, creates SHA-256 files, and publishes assets only for validated version tags. Main-branch builds retain an Actions artifact for 14 days; release assets provide persistent public downloads. A failed build does not publish a release.
 
-The first portable binary is preserved with the frozen source at [v0.1.0](https://github.com/data-node/01a12515-452f-759f-96b9-413e3d043394/raw/refs/tags/v0.1.0/downloads/Notch-0.1.0-win-x64.exe), independently of new workflow outcomes. Builds are currently unsigned. The workflow deliberately disables executable signing/metadata editing until a signing setup is available.
+The first portable binary is preserved with the frozen source at [v0.1.0](https://github.com/data-node/01a12515-452f-759f-96b9-413e3d043394/raw/refs/tags/v0.1.0/downloads/Notch-0.1.0-win-x64.exe), independently of new workflow outcomes. Builds are currently unsigned. Signing is disabled until a signing setup is available; the native Windows workflow retains icon/version metadata. Packaging explicitly uses `--publish never`, and a separate release job publishes only validated assets.
 
 ## Interface previews
 
