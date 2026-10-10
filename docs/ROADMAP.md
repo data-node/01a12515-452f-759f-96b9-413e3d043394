@@ -20,7 +20,7 @@ Read live YC directory pages, product websites, and official repositories on 202
 | Quivr | [Official README](https://github.com/QuivrHQ/quivr#readme) | Current V2 evaluation-stage design emphasizes durable writes, idempotency, background enrichment, rebuildable indexes and retrieval evaluation | Immediate SQLite commits, safe retries, explicit lifecycle states, later regression benchmarks and index rebuilds |
 | ThirdBrain candidate | [S-zhi/ThirdBrain English README](https://github.com/S-zhi/ThirdBrain/blob/main/README.en.md) | Versioned scoped context, evidence-backed knowledge cards, relation graph, machine-consumable retrieval, rebuildable indexes | Provenance, explicit project scopes, related-item reasons, future context capsules and read-only MCP |
 
-**Research limits:** “3rd brain” identifies several unrelated projects. The ThirdBrain repository above is a relevant candidate, not a confirmed identification of the product the user had in mind and not a claim of YC affiliation. Direct website requests were initially blocked; after the domain configuration became active, the Onyx/Raycast YC pages and product sites, plus Khoj's website, were successfully read. YC lists Onyx as Winter 2024 (acquired) and Raycast as Winter 2020 (active). Product-site performance/cost numbers are marketing claims, not Notch measurements. Mem's requested YC slug returned 404 and its public URL served a JavaScript-dependent app shell, so Mem features and YC membership are not asserted. A YC directory query for “third brain” did not identify a specific project in the returned page; that identification remains open.
+**Research limits:** “3rd brain” identifies several unrelated projects. The ThirdBrain repository above is a relevant candidate, not a confirmed identification of the product the user had in mind and not a claim of YC affiliation. Direct website requests were initially blocked; when follow-up website requests succeeded, the Onyx/Raycast YC pages and product sites, plus Khoj's website, were successfully read. YC lists Onyx as Winter 2024 (acquired) and Raycast as Winter 2020 (active). Product-site performance/cost numbers are marketing claims, not Notch measurements. Mem's requested YC slug returned 404 and its public URL served a JavaScript-dependent app shell, so Mem features and YC membership are not asserted. A YC directory query for “third brain” did not identify a specific project in the returned page; that identification remains open.
 
 ### What the website pass changed
 
@@ -55,8 +55,8 @@ Effort: S = a focused change; M = several implementation and validation steps; L
 | 14 | P0 | Atomic v1→v2 migration with a readable pre-migration SQLite backup; reject newer schemas | M | Implemented |
 | 15 | P0 | V2 JSON exports retain archive/trash, saved searches and title ownership; V1 imports still work transactionally | M | Implemented |
 | 16 | P0 | Prevent stale AI responses after edits, duplicate capture, trash and restore | M | Implemented |
-| 17 | P0 | Versioned Windows release assets with checksums and a stable download URL independent of expiring Actions artifacts | M | Release work |
-| 18 | P0 | Windows CI reports packaging failures clearly and validates actual packaged app capture/search before release | M | Release work |
+| 17 | P0 | Versioned Windows release assets with checksums and a stable download URL independent of expiring Actions artifacts | M | Released |
+| 18 | P0 | Windows CI reports packaging failures clearly and validates actual packaged app capture/search before release | M | Released |
 | 19 | P1 | Clipboard-aware capture: deliberate paste action with URL/path preview; never silently collect clipboard history | S | Planned |
 | 20 | P1 | Drag a file/folder onto capture and fill the locator accurately, including UNC paths | M | Planned |
 | 21 | P1 | In-notch type selector and validation for extensionless files; retain the compact layout | S | Planned |

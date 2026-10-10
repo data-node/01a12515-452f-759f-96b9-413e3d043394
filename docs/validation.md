@@ -1,31 +1,47 @@
 # Validation — Notch 0.2.0 — 2026-10-10
 
-The current cloud machine is Linux, with Node 24.19.0, Chromium, and a dummy Xorg display. This validates the development environment and shared application behavior, not Windows installation or OS integration.
+The application source released as v0.2.0 is commit `3803bda71a7802b547a56eb9d4a6ad633ad11416`. The original v0.1.0 source is `442b664b96a25a4e29d93bc3100ea390bb757480`; its original executable SHA-256 is `236ca831c77ad9444e301532878f7817e03f41f31880c20556dc62516577c91b`.
 
 | Check | Result |
 | --- | --- |
-| Frozen installation, including Electron's verified binary download | Passed: `npm ci --no-audit --no-fund`, using writable caches and the platform proxy |
-| TypeScript and production bundle | Passed: `npm run build` |
-| Real SQLite and mocked provider suite | 29 passed, 0 failed, 0 skipped |
-| Browser interface suite | 9 passed, 0 failed, 0 skipped |
-| Native Electron smoke | Passed: real SQLite capture/search, separate capture window, global shortcut registration on Linux, renderer isolation, editing, saved filters, archive/trash/restore, favorites, and persistence after process restart |
-| Original 0.1.0 portable Windows x64 packaging | Passed: `electron-builder --win portable --x64 --config.win.signAndEditExecutable=false` |
-| Original 0.1.0 packaged build consistency | Bundled UI, desktop process, preload, fonts, and icons match the current build |
-| Windows executable signature | Unsigned; no Authenticode certificate. SHA-256 file generated beside the executable |
-| NSIS installer on this machine | Blocked: Wine is unavailable. The incomplete intermediate installer was removed |
-| Live Anthropic / Ollama | Not run: no real API key or local model server was configured; HTTP adapter tests are mocked |
-| Windows tray, Explorer, login startup, shortcut, portable launch, and installer execution | Not run: needs a real Windows 10/11 machine |
+| Frozen dependency installation | Passed on Windows CI: Node 24 and `npm ci --no-audit --no-fund` |
+| TypeScript and production bundle | Passed on cloud Linux and Windows CI |
+| Real SQLite and mocked provider tests | 25 passed, 0 failed, 0 skipped on Linux and Windows |
+| Browser UI tests | 9 passed, 0 failed, 0 skipped on Linux Chromium |
+| Native Electron smoke on Linux | Passed in a fresh temporary collection with isolated IPC, capture/search, edits, saved filters, archive/trash/restore, shortcut registration, favorites and restart persistence |
+| Native packaged app smoke on Windows | Passed using `release/win-unpacked/Notch.exe`; the same functional assertions executed against the packaged Windows runtime |
+| NSIS installer and portable x64 packaging | Passed on native Windows CI |
+| Frozen v0.1.0 preservation | Tag still points to the original source. Original repository checksum verifies. Published release asset digest equals the original checksum and its public URL returns a valid executable header |
+| Live Anthropic / Ollama | Not run; no live provider credentials/model server configured. Provider adapter tests are mocked |
+| Installer install/uninstall and upgrade UX | Not run; installer was generated, while capture/search was checked in the unpacked packaged runtime |
+| Explorer opening, startup at login, physical shortcut across apps, portable launcher execution on a user's Windows machine | Manual validation remains; automated smoke checks registration and native app behavior |
+| Windows signature | Unsigned, with signing explicitly disabled. Native Windows executable icon/version metadata editing is retained |
 
-The exact **claude root folder → C:\Projects\Claude** lookup passed against real SQLite, in both backend tests and the native app. Duplicate updates, FTS syntax safety, weighted BM25, semantic rank fusion, fallback when embeddings are offline, transactional import, deletion during AI work, and stale AI responses are covered by the backend suite.
+The exact **claude root folder → C:\Projects\Claude** retrieval passed against real SQLite on Linux and in the packaged Windows app. The automated Windows test does not open that illustrative nonexistent path in Explorer.
 
-Browser tests cover capture with manual tags, saved-item search, favorites, deletion confirmation, provider/model preferences, view switching, and empty results. Browser sample data is explicitly labeled and separate from desktop SQLite.
+New tests use the exact frozen v1 SQL schema to verify one-time migration, preserved preferences/FTS, an independently readable pre-migration backup, and refusal of a future schema without changing it. Other checks cover canonical collision rejection, preservation of user titles through enrichment, search operators, active/archive/trash separation for lexical and vector retrieval, saved-search persistence, relation evidence, V1/V2 round trips, transactional rollback, and stale provider results after edit/trash/restoration.
 
-Native smoke uses a fresh temporary user-data directory and removes it afterward. This container has no usable Chromium OS sandbox; only this isolated Linux test process used the explicit `NOTCH_SMOKE_NO_SANDBOX=1` flag. Normal development and packaged Windows startup retain their default sandbox configuration.
+UI tests cover capture, search, favorites, explicit trash confirmation, Undo, restore, archive, editing, Close/Cancel without saving, saved filters, keyboard commands, connected items, settings and layouts. Browser sample data is explicitly labeled and separate from desktop SQLite. Preview PNGs were visually inspected and their public repository bytes checked against the local files.
 
-Reusable `install_script` and `start_skill` were saved to the environment configuration draft. Draft saving does not publish a snapshot or establish fresh-task restoration. Review/save in environment settings and publish separately.
+## Build diagnosis and release process
 
-The original executable's SHA-256 still verifies, and the immutable v0.1.0 tag points to the original source. Version 0.2.0 Windows packaging/runtime CI is pending at this stage. The updated workflow keeps failing packaging logs and exposes final diagnostic lines as annotations, so failures can be investigated without claiming a download exists.
+The early Windows builds failed after executable generation because electron-builder implicitly attempted publication in CI without a GitHub token. Packaging now uses `--publish never`; publication uses a separate GitHub Actions job with `contents: write` only after successful packaged-runtime validation. A direct cloud release upload returned HTTP 401, so the original frozen release was published by an authorized workflow using GitHub Actions' token. No user credentials were printed or requested.
 
-New SQLite checks exercise the exact frozen v1 schema, a readable independent pre-migration backup, restart without repeated migration, refusal of newer schemas, custom titles, canonical collision handling, operator search, scoped text/vector results, related-item evidence, V1/V2 round trips and stale provider responses after editing/trash/restoration. UI checks exercise the same new user flows, including Close/Cancel without saving and keyboard saved-search navigation.
+The successful main-branch Windows build is [run 38057297872](https://github.com/data-node/01a12515-452f-759f-96b9-413e3d043394/actions/runs/38057297872). The frozen release publication is [run 38057349767](https://github.com/data-node/01a12515-452f-759f-96b9-413e3d043394/actions/runs/38057349767). The tagged [release build 38057565403](https://github.com/data-node/01a12515-452f-759f-96b9-413e3d043394/actions/runs/38057565403) passed both Windows validation and release publication.
 
-The first 0.2.0 Windows CI attempt passed all 25 backend tests and compilation. Packaging completed the executable generation but then failed because electron-builder implicitly attempted publication in CI without a GitHub token. The corrected workflow uses `--publish never` during packaging and a separate least-privilege release job after the packaged-runtime smoke test. Signing is disabled explicitly; native Windows metadata editing is retained.
+On constrained cloud Linux, only the isolated native smoke process uses `NOTCH_SMOKE_NO_SANDBOX=1`. Normal development and packaged Windows builds keep sandbox defaults. Windows smoke does not set that bypass.
+
+Reusable installation/start instructions and necessary research/GitHub domains are saved to the cloud environment configuration draft. Saving a draft does not publish a snapshot or establish fresh-task restoration; review/save and publish in environment settings remain separate operations.
+
+## Public download verification
+
+Both complete files were downloaded through their public GitHub release URLs after publication. File sizes and computed SHA-256 values match both the downloaded checksum files and GitHub's server digests. Both have valid PE executable headers and no Authenticode certificate.
+
+| Asset | Bytes | SHA-256 |
+| --- | --- | --- |
+| [Portable 0.2.0](https://github.com/data-node/01a12515-452f-759f-96b9-413e3d043394/releases/download/v0.2.0/Notch.0.2.0.exe) | 114086845 | `a04611d6cf77713705daa05c069442c0bf81db2c0834d5adba4e4f4d68e05500` |
+| [Installer 0.2.0](https://github.com/data-node/01a12515-452f-759f-96b9-413e3d043394/releases/download/v0.2.0/Notch.Setup.0.2.0.exe) | 114296868 | `cb5e2837f1da745e0286573d6e3aeb284fcb13a1044bfba54699510b0582ecdd` |
+
+GitHub normalizes spaces to dots in the release asset names. Check the hash value in the checksum file; its original builder filename contains spaces. This normalization changes the download name, not the executable bytes.
+
+The first release is [preserved separately](https://github.com/data-node/01a12515-452f-759f-96b9-413e3d043394/releases/tag/v0.1.0). No original executable, checksum or source tag was replaced.

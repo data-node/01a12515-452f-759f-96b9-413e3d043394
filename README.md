@@ -44,7 +44,11 @@ Output is in `release/`. Build on Windows for the supported installer workflow. 
 
 ## Download through GitHub
 
-The initial portable build is available directly from the repository: **[Download Notch 0.1.0 for Windows](downloads/Notch-0.1.0-win-x64.exe?raw=1)**. This is the unsigned Linux cross-build described above and still needs execution testing on Windows. [Its SHA-256 checksum](downloads/Notch-0.1.0-win-x64.exe.sha256) is included beside it. Run the portable executable directly; installation is not required.
+**[Download Notch 0.2.0 portable for Windows x64](https://github.com/data-node/01a12515-452f-759f-96b9-413e3d043394/releases/download/v0.2.0/Notch.0.2.0.exe)** or use the **[Windows installer](https://github.com/data-node/01a12515-452f-759f-96b9-413e3d043394/releases/download/v0.2.0/Notch.Setup.0.2.0.exe)**. The portable executable runs directly without installation. Both are unsigned native Windows builds whose packaged runtime passed automated capture/search and library smoke checks. The installer install/uninstall flow still needs manual validation.
+
+[Portable checksum](https://github.com/data-node/01a12515-452f-759f-96b9-413e3d043394/releases/download/v0.2.0/Notch.0.2.0.exe.sha256) · [Installer checksum](https://github.com/data-node/01a12515-452f-759f-96b9-413e3d043394/releases/download/v0.2.0/Notch.Setup.0.2.0.exe.sha256). Compare the hash value with `Get-FileHash .\Notch.0.2.0.exe -Algorithm SHA256`; GitHub normalizes the builder's spaces to dots in the download names.
+
+The **[frozen original 0.1.0 release](https://github.com/data-node/01a12515-452f-759f-96b9-413e3d043394/releases/tag/v0.1.0)** retains its exact original portable binary, source and checksum. Its [repository copy](downloads/Notch-0.1.0-win-x64.exe?raw=1) is preserved too. That original build was cross-built on Linux and was not executed on Windows.
 
 New versioned downloads are published on the [GitHub Releases page](https://github.com/data-node/01a12515-452f-759f-96b9-413e3d043394/releases). The Windows workflow builds both installer and portable app, exercises actual capture/search in the packaged runtime, creates SHA-256 files, and publishes assets only for validated version tags. Main-branch builds retain an Actions artifact for 14 days; release assets provide persistent public downloads. A failed build does not publish a release.
 
