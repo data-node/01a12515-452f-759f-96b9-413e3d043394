@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dist-electron/
+release/
+playwright-report/
+test-results/
+.runtime/
+.env
+*.log
+*.sqlite*

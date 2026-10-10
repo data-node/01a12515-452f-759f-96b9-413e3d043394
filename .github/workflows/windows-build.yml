@@ -1,0 +1,62 @@
+name: Build Windows downloads
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the project
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run SQLite and provider tests
+        run: npm test
+
+      - name: Check types and build the application
+        run: npm run build
+
+      - name: Build installer and portable application on Windows
+        run: npm exec -- electron-builder --win nsis portable --x64
+
+      - name: Create SHA-256 checksums
+        shell: pwsh
+        run: |
+          $apps = @(Get-ChildItem release -Filter *.exe)
+          if ($apps.Count -lt 2) {
+            throw 'Expected both an installer and a portable Windows executable.'
+          }
+          foreach ($app in $apps) {
+            $digest = (Get-FileHash $app.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$digest  $($app.Name)" | Set-Content -Path "$($app.FullName).sha256" -Encoding ascii
+          }
+
+      - name: Upload the downloadable application bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: Notch-Windows-x64
+          path: |
+            release/*.exe
+            release/*.exe.sha256
+            docs/previews/*.png
+            README.md
+          if-no-files-found: error
+          retention-days: 14
